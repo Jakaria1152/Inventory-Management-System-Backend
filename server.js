@@ -33,18 +33,18 @@ app.post('/login', async (req, res) => {
 });
 
 // Middleware for admin check
-const isAdmin = async (req, res, next) => {
-    const { username } = req.body;
-    const user = await User.findOne({ username });
-    if (user && user.role === 'admin') {
-        next();
-    } else {
-        res.status(403).send('Forbidden');
-    }
-};
+// const isAdmin = async (req, res, next) => {
+//     const { username } = req.body;
+//     const user = await User.findOne({ username });
+//     if (user && user.role === 'admin') {
+//         next();
+//     } else {
+//         res.status(403).send('Forbidden');
+//     }
+// };
 
 // Admin: Add product
-app.post('/products', isAdmin, async (req, res) => {
+app.post('/products', async (req, res) => {
     const { name, price, quantity } = req.body;
     const product = new Product({ name, price, quantity });
     await product.save();
@@ -52,7 +52,7 @@ app.post('/products', isAdmin, async (req, res) => {
 });
 
 // Admin: Update product
-app.put('/products/:id', isAdmin, async (req, res) => {
+app.put('/products/:id',  async (req, res) => {
     const { id } = req.params;
     const { name, price, quantity } = req.body;
     await Product.findByIdAndUpdate(id, { name, price, quantity });
@@ -60,20 +60,20 @@ app.put('/products/:id', isAdmin, async (req, res) => {
 });
 
 // Admin: Delete product
-app.delete('/products/:id', isAdmin, async (req, res) => {
+app.delete('/products/:id',  async (req, res) => {
     const { id } = req.params;
     await Product.findByIdAndDelete(id);
     res.send('Product deleted');
 });
 
 // Admin: View products
-app.get('/products', isAdmin, async (req, res) => {
+app.get('/products',  async (req, res) => {
     const products = await Product.find();
     res.json(products);
 });
 
 // Admin: Add discount
-app.post('/discounts', isAdmin, async (req, res) => {
+app.post('/discounts', async (req, res) => {
     const { productId, requiredQuantity, freeProductId, freeQuantity } = req.body;
     const discount = new Discount({ productId, requiredQuantity, freeProductId, freeQuantity });
     await discount.save();
@@ -81,7 +81,7 @@ app.post('/discounts', isAdmin, async (req, res) => {
 });
 
 // Admin: Update discount
-app.put('/discounts/:id', isAdmin, async (req, res) => {
+app.put('/discounts/:id',  async (req, res) => {
     const { id } = req.params;
     const { productId, requiredQuantity, freeProductId, freeQuantity } = req.body;
     await Discount.findByIdAndUpdate(id, { productId, requiredQuantity, freeProductId, freeQuantity });
@@ -89,14 +89,14 @@ app.put('/discounts/:id', isAdmin, async (req, res) => {
 });
 
 // Admin: Delete discount
-app.delete('/discounts/:id', isAdmin, async (req, res) => {
+app.delete('/discounts/:id',  async (req, res) => {
     const { id } = req.params;
     await Discount.findByIdAndDelete(id);
     res.send('Discount deleted');
 });
 
 // Admin: View discounts
-app.get('/discounts', isAdmin, async (req, res) => {
+app.get('/discounts',  async (req, res) => {
     const discounts = await Discount.find().populate('productId').populate('freeProductId');
     res.json(discounts);
 });
@@ -160,13 +160,13 @@ app.post('/user/return', async (req, res) => {
 });
 
 // Admin: View return requests
-app.get('/admin/returns', isAdmin, async (req, res) => {
+app.get('/admin/returns',  async (req, res) => {
     const returnRequests = await ReturnRequest.find().populate('userId').populate('productId');
     res.json(returnRequests);
 });
 
 // Admin: Accept return request
-app.post('/admin/returns/:id/accept', isAdmin, async (req, res) => {
+app.post('/admin/returns/:id/accept',  async (req, res) => {
     const { id } = req.params;
 
     const returnRequest = await ReturnRequest.findById(id).populate('productId');
@@ -193,7 +193,7 @@ app.post('/admin/returns/:id/accept', isAdmin, async (req, res) => {
 });
 
 // Admin: Reject return request
-app.post('/admin/returns/:id/reject', isAdmin, async (req, res) => {
+app.post('/admin/returns/:id/reject',  async (req, res) => {
     const { id } = req.params;
 
     const returnRequest = await ReturnRequest.findById(id);
