@@ -2,15 +2,16 @@ const express = require('express');
 const mongoose = require('mongoose');
 const bodyParser = require('body-parser');
 
-const User = require('./models/user');
-const Product = require('./models/product');
-const Discount = require('./models/discount');
+const User = require('./models/User');
+const Product = require('./models/Product');
+const Discount = require('./models/Discount');
+const ReturnRequest = require('./models/ReturnRequest');
 
 const app = express();
 app.use(bodyParser.json());
 
 // Connect to MongoDB
-mongoose.connect('mongodb://localhost/inventorymanagement').then(()=> console.log('MongoDB Connected')).catch(err=>console.log(err));
+mongoose.connect('mongodb://localhost/inventorymanagement').then(()=> console.log('Database Connected')).catch(err=>console.log(err));
 
 // Registration
 app.post('/register', async (req, res) => {
@@ -117,7 +118,7 @@ app.post('/user/purchase', async (req, res) => {
     const { productId, quantity, userId } = req.body;
 
     const product = await Product.findById(productId);
-    if (!product || product.quantity < quantity ) {
+    if (!product || product.quantity < quantity) {
         return res.status(400).send('Insufficient product quantity');
     }
 
@@ -143,13 +144,74 @@ app.post('/user/return', async (req, res) => {
     const { productId, quantity, userId } = req.body;
 
     // Validate return request (omitted for brevity)
-
     const product = await Product.findById(productId);
-    product.quantity += quantity;
-    await product.save();
+    if (!product) {
+        return res.status(400).send('Product not found');
+    }
 
-    res.send('Return accepted');
+    const returnRequest = new ReturnRequest({
+        userId,
+        productId,
+        quantity
+    });
+    await returnRequest.save();
+
+    res.send('Return request submitted');
 });
+
+// Admin: View return requests
+app.get('/admin/returns', isAdmin, async (req, res) => {
+    const returnRequests = await ReturnRequest.find().populate('userId').populate('productId');
+    res.json(returnRequests);
+});
+
+// Admin: Accept return request
+app.post('/admin/returns/:id/accept', isAdmin, async (req, res) => {
+    const { id } = req.params;
+
+    const returnRequest = await ReturnRequest.findById(id).populate('productId');
+    if (!returnRequest) {
+        return res.status(400).send('Return request not found');
+    }
+
+    const purchaseHistory = await getPurchaseHistory(returnRequest.userId, returnRequest.productId);
+    const totalPurchased = purchaseHistory.reduce((total, purchase) => total + purchase.quantity, 0);
+
+    if (totalPurchased < returnRequest.quantity) {
+        returnRequest.status = 'rejected';
+        await returnRequest.save();
+        return res.status(400).send('Return request rejected: Returned quantity exceeds purchased quantity');
+    }
+
+    returnRequest.productId.quantity += returnRequest.quantity;
+    await returnRequest.productId.save();
+
+    returnRequest.status = 'accepted';
+    await returnRequest.save();
+
+    res.send('Return request accepted');
+});
+
+// Admin: Reject return request
+app.post('/admin/returns/:id/reject', isAdmin, async (req, res) => {
+    const { id } = req.params;
+
+    const returnRequest = await ReturnRequest.findById(id);
+    if (!returnRequest) {
+        return res.status(400).send('Return request not found');
+    }
+
+    returnRequest.status = 'rejected';
+    await returnRequest.save();
+
+    res.send('Return request rejected');
+});
+
+// Mock function to get purchase history
+const getPurchaseHistory = async (userId, productId) => {
+    // In a real application, this would query the database
+    return [{ productId, quantity: 4 }]; // Mock data
+};
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
